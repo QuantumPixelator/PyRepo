@@ -2,7 +2,9 @@ import sys
 import os
 import json
 import requests
+import base64
 from PySide6.QtCore import Qt, QUrl, QProcess
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QMainWindow, QTreeWidget, QTreeWidgetItem, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QTextBrowser, QLineEdit, QLabel, QDialog, QDialogButtonBox
 
 class TokenDialog(QDialog):
@@ -22,6 +24,8 @@ class TokenDialog(QDialog):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.setWindowTitle("PyRepo")
+        self.setWindowIcon(QIcon('icon.png'))
         self.username = ""
         self.token = ""
         self.init_ui()
@@ -99,8 +103,17 @@ class MainWindow(QMainWindow):
         if response.status_code == 200:
             repo_info = response.json()
             description = repo_info.get('description', 'No description available.')
+            
+            readme_response = requests.get(f'https://api.github.com/repos/{self.username}/{repo_name}/readme', headers=headers)
+            readme_text = "No README.md found."
+            if readme_response.status_code == 200:
+                readme_info = readme_response.json()
+                readme_content_base64 = readme_info.get('content', '')
+                readme_text = base64.b64decode(readme_content_base64).decode('utf-8')
+            
             self.urlBrowser.setOpenExternalLinks(True)
-            self.urlBrowser.setText(f"<b>About:</b> {description}<br><br><a href='https://github.com/{self.username}/{repo_name}' target='_blank'>Open on GitHub</a>")
+            self.urlBrowser.setText(f"<b>About:</b> {description}<br><br><b>README.md:</b><br>{readme_text}<br><br><a href='https://github.com/{self.username}/{repo_name}' target='_blank' style='color: yellow;'>Open on GitHub</a>")
+
             self.pushButton.setEnabled(True)
         else:
             self.urlBrowser.setText("Could not fetch repository information.")
@@ -115,20 +128,27 @@ class MainWindow(QMainWindow):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setStyleSheet("""
-    * {
-        background: #2E2E2E;
-        color: #FFFFFF;
-    }
-    QTreeWidget::item:selected {
-        background: #6e6e6e;
-    }
-    QPushButton {
-        background: #555555;
-    }
-    QPushButton:hover {
-        background: #888888;
-    }
-    """)
+        * {
+            background: #2E2E2E;
+            color: #FFFFFF;
+        }
+        QHeaderView::section {
+            background-color: #555555;
+            border: none;
+            color: white;
+            padding: 5px;
+        }
+        QTreeWidget::item:selected {
+            background: #6e6e6e;
+        }
+        QPushButton {
+            background: #555555;
+        }
+        QPushButton:hover {
+            background: #888888;
+        }
+        """)
+
     window = MainWindow()
     window.show()
     sys.exit(app.exec())
